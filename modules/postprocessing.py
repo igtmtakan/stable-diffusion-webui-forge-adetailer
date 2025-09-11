@@ -2,7 +2,7 @@ import os
 
 from PIL import Image
 
-from modules import shared, images, devices, scripts, scripts_postprocessing, ui_common, infotext_utils
+from modules import shared, images, devices, scripts, scripts_postprocessing, ui_common, infotext_utils, extras
 from modules.shared import opts
 
 
@@ -73,7 +73,40 @@ def run_postprocessing(extras_mode, image, image_folder, input_dir, output_dir, 
 
         initial_pp = scripts_postprocessing.PostprocessedImage(image_data)
 
-        scripts.scripts_postproc.run(initial_pp, args)
+        # ADetailer処理（Extrasタブ用）
+        adetailer_processed = False
+        if len(args) >= 6:  # ADetailerパラメータが含まれている場合
+            try:
+                # 最後の6つの引数がADetailerパラメータ
+                adetailer_args = args[-6:]
+                if len(adetailer_args) == 6:
+                    adetailer_enable, adetailer_model, adetailer_detection_model, adetailer_prompt_enhancement, adetailer_confidence, adetailer_mask_blur = adetailer_args
+                    print(f"[Extras] ADetailer params: enable={adetailer_enable}, inpaint_model={adetailer_model}, detection_model={adetailer_detection_model}")
+
+                    if adetailer_enable and hasattr(extras, 'run_adetailer_extras_wrapper'):
+                        print(f"[Extras] Running ADetailer processing...")
+                        processed_image, message = extras.run_adetailer_extras_wrapper(
+                            initial_pp.image,
+                            adetailer_enable,
+                            adetailer_model,
+                            adetailer_detection_model,
+                            adetailer_prompt_enhancement,
+                            adetailer_confidence,
+                            adetailer_mask_blur
+                        )
+                        if processed_image is not None:
+                            initial_pp.image = processed_image
+                            infotext += f"\nADetailer: {message}"
+                            adetailer_processed = True
+                            print(f"[Extras] ADetailer processing completed: {message}")
+                        else:
+                            print(f"[Extras] ADetailer processing failed: {message}")
+            except Exception as e:
+                print(f"[Extras] ADetailer processing error: {e}")
+
+        # 他のスクリプトを実行（ADetailerパラメータを除外）
+        script_args = args[:-5] if len(args) >= 5 else args
+        scripts.scripts_postproc.run(initial_pp, script_args)
 
         if shared.state.skipped:
             continue
@@ -123,8 +156,15 @@ def run_postprocessing(extras_mode, image, image_folder, input_dir, output_dir, 
                         with open(caption_filename, "w", encoding="utf8") as file:
                             file.write(caption)
 
+            # デバッグ情報を追加
+            print(f"[Extras] Debug: extras_mode={extras_mode}, show_extras_results={show_extras_results}")
+            print(f"[Extras] Debug: Condition result: {extras_mode != 2 or show_extras_results}")
+
             if extras_mode != 2 or show_extras_results:
                 outputs.append(pp.image)
+                print(f"[Extras] Debug: Added image to outputs. Total outputs: {len(outputs)}")
+            else:
+                print(f"[Extras] Debug: Skipped adding image to outputs due to condition")
 
     devices.torch_gc()
     shared.state.end()

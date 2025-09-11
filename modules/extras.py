@@ -12,6 +12,14 @@ from modules.ui_common import plaintext_to_html
 import gradio as gr
 import safetensors.torch
 
+# ADetailer imports for Extras tab
+try:
+    from extensions.adetailer.scripts.adetailer_extras import get_adetailer_models, get_detection_models, run_adetailer_extras
+    ADETAILER_AVAILABLE = True
+except ImportError:
+    ADETAILER_AVAILABLE = False
+    print("[Extras] ADetailer not available")
+
 
 def run_pnginfo(image):
     if image is None:
@@ -320,6 +328,101 @@ def run_modelmerger(id_task, primary_model_name, secondary_model_name, tertiary_
     created_model = next((ckpt for ckpt in sd_models.checkpoints_list.values() if ckpt.name == filename), None)
     if created_model:
         created_model.calculate_shorthash()
+
+
+def run_adetailer_extras_wrapper(image, enable_adetailer, inpaint_model, detection_model, prompt_enhancement, detection_confidence, mask_blur):
+    """
+    ExtrasタブでADetailer処理を実行（ラッパー関数）
+    """
+    if not ADETAILER_AVAILABLE:
+        return image, "ADetailer is not available"
+
+    try:
+        return run_adetailer_extras(image, enable_adetailer, inpaint_model, detection_model, prompt_enhancement, detection_confidence, mask_blur)
+    except Exception as e:
+        return image, f"ADetailer processing failed: {str(e)}"
+
+
+def get_adetailer_models_wrapper():
+    """
+    利用可能なADetailer inpaintモデルのリストを取得（ラッパー関数）
+    """
+    if not ADETAILER_AVAILABLE:
+        print("[Extras] ADetailer not available, using fallback models")
+        return get_fallback_adetailer_models()
+
+    try:
+        models = get_adetailer_models()
+        print(f"[Extras] Retrieved {len(models)} ADetailer inpaint models: {models}")
+        if len(models) <= 1:  # "None"のみの場合
+            print("[Extras] Using fallback models due to insufficient models")
+            return get_fallback_adetailer_models()
+        return models
+    except Exception as e:
+        print(f"[Extras] Failed to get ADetailer models: {e}")
+        print("[Extras] Using fallback models due to error")
+        return get_fallback_adetailer_models()
+
+
+def get_detection_models_wrapper():
+    """
+    利用可能なADetailer顔検出モデルのリストを取得（ラッパー関数）
+    """
+    if not ADETAILER_AVAILABLE:
+        print("[Extras] ADetailer not available, using fallback detection models")
+        return get_fallback_detection_models()
+
+    try:
+        models = get_detection_models()
+        print(f"[Extras] Retrieved {len(models)} ADetailer detection models: {models}")
+        if len(models) <= 1:  # "None"のみの場合
+            print("[Extras] Using fallback detection models due to insufficient models")
+            return get_fallback_detection_models()
+        return models
+    except Exception as e:
+        print(f"[Extras] Error getting detection models: {e}")
+        return get_fallback_detection_models()
+
+def get_fallback_adetailer_models():
+    """フォールバックADetailerモデルリスト"""
+    return [
+        "None",
+        "🎨 sd-v1-5-inpainting",
+        "🎨 americanBeauty_v15_inpainting",
+        "🎨 beautifulRealistic_v7_inpainting",
+        "🎨 chilloutmix_inpainting",
+        "🎨 chineseDollLikeness_v15_inpainting",
+        "🎨 deliberate_v2_inpainting",
+        "🎨 dreamshaper_8Inpainting",
+        "🎨 europeanBeauty_v20_inpainting",
+        "🎨 indianBeauty_v15_inpainting",
+        "🎨 majicmixRealistic_v7-inpainting",
+        "🎨 majicmixRealistic_v7_inpainting",
+        "🎨 realisticVisionV60B1_v51HyperInpaintVAE",
+        "🎨 realisticVision_v6_inpainting",
+        "🎨 stable_diffusion_v15_inpainting",
+        "🎨 yayoiMix_v25",
+        "🎨 koreanDollLikeness"
+    ]
+
+
+def get_fallback_detection_models():
+    """
+    フォールバック用のADetailer顔検出モデルリスト
+    """
+    return [
+        "None",
+        "🎨 face_yolov8n.pt",
+        "🎨 face_yolov8s.pt",
+        "🎨 hand_yolov8n.pt",
+        "🎨 person_yolov8n-seg.pt",
+        "🎨 person_yolov8s-seg.pt",
+        "🎨 yolov8x-worldv2.pt",
+        "🎨 mediapipe_face_full",
+        "🎨 mediapipe_face_short",
+        "🎨 mediapipe_face_mesh",
+        "🎨 mediapipe_face_mesh_eyes_only"
+    ]
 
     # TODO inside create_config() sd_models_config.find_checkpoint_config_near_filename() is called which has been commented out
     #create_config(output_modelname, config_source, primary_model_info, secondary_model_info, tertiary_model_info)
