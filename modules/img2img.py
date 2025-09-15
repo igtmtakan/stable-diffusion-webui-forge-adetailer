@@ -161,11 +161,16 @@ def img2img_function(id_task: str, request: gr.Request, mode: int, prompt: str, 
     if mode == 0:  # img2img
         image = init_img
         mask = None
+        # Check if image is provided for img2img mode
+        if image is None:
+            raise ValueError("No input image provided for img2img mode. Please upload an image.")
     elif mode == 1:  # img2img sketch
         mask = None
         image = Image.alpha_composite(sketch, sketch_fg)
     elif mode == 2:  # inpaint
         image = init_img_with_mask
+        if image is None:
+            raise ValueError("No input image provided for inpaint mode. Please upload an image.")
         mask = init_img_with_mask_fg.getchannel('A').convert('L')
         mask = Image.merge('RGBA', (mask, mask, mask, Image.new('L', mask.size, 255)))
     elif mode == 3:  # inpaint sketch
@@ -178,6 +183,8 @@ def img2img_function(id_task: str, request: gr.Request, mode: int, prompt: str, 
     elif mode == 4:  # inpaint upload mask
         image = init_img_inpaint
         mask = init_mask_inpaint
+        if image is None:
+            raise ValueError("No input image provided for inpaint upload mask mode. Please upload an image.")
 
     if mask and isinstance(mask, Image.Image):
         mask = mask.point(lambda v: 255 if v > 128 else 0)
@@ -185,8 +192,16 @@ def img2img_function(id_task: str, request: gr.Request, mode: int, prompt: str, 
     image = images.fix_image(image)
     mask = images.fix_image(mask)
 
+    # Final check after fix_image processing
+    if image is None:
+        raise ValueError("Image processing failed. Please check your input image and try again.")
+
     if selected_scale_tab == 1 and not is_batch:
         assert image, "Can't scale by because no image is selected"
+
+        # Additional safety check for image attributes
+        if not hasattr(image, 'width') or not hasattr(image, 'height'):
+            raise ValueError("Invalid image object: missing width or height attributes")
 
         width = int(image.width * scale_by)
         width -= width % 8

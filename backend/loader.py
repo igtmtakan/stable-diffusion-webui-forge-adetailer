@@ -451,6 +451,10 @@ def split_state_dict(sd, additional_state_dicts: list = None):
     sd = preprocess_state_dict(sd)
     guess = huggingface_guess.guess(sd)
 
+    # Check if guess is None
+    if guess is None:
+        raise ValueError('Failed to recognize model type from state dict!')
+
     if isinstance(additional_state_dicts, list):
         for asd in additional_state_dicts:
             asd = load_torch_file(asd)

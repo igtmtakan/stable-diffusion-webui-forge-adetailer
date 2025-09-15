@@ -60,10 +60,19 @@ def run_postprocessing(extras_mode, image, image_folder, input_dir, output_dir, 
         if isinstance(image_placeholder, str):
             try:
                 image_data = images.read(image_placeholder)
-            except Exception:
+                if image_data is None or not hasattr(image_data, 'mode'):
+                    print(f"[Warning] Failed to load valid image from: {image_placeholder}")
+                    continue
+            except Exception as e:
+                print(f"[Warning] Error reading image {image_placeholder}: {e}")
                 continue
         else:
             image_data = image_placeholder
+
+        # Additional safety check for image_data
+        if image_data is None or not hasattr(image_data, 'mode'):
+            print(f"[Warning] Invalid image data: {type(image_data)}")
+            continue
 
         image_data = image_data if image_data.mode in ("RGBA", "RGB") else image_data.convert("RGB")
 

@@ -79,6 +79,14 @@ def apply_overlay(image, paste_loc, overlay):
     if overlay is None:
         return image, image.copy()
 
+    # Additional safety checks for image objects
+    if image is None or not hasattr(image, 'mode'):
+        print(f"[Warning] Invalid image object in apply_overlay: {type(image)}")
+        return image, image
+    if overlay is not None and not hasattr(overlay, 'mode'):
+        print(f"[Warning] Invalid overlay object in apply_overlay: {type(overlay)}")
+        return image, image.copy()
+
     if paste_loc is not None:
         image = uncrop(image, (overlay.width, overlay.height), paste_loc)
 
@@ -91,6 +99,11 @@ def apply_overlay(image, paste_loc, overlay):
     return image, original_denoised_image
 
 def create_binary_mask(image, round=True):
+    # Additional safety check for image object
+    if image is None or not hasattr(image, 'mode'):
+        print(f"[Warning] Invalid image object in create_binary_mask: {type(image)}")
+        return image
+
     if image.mode == 'RGBA' and image.getextrema()[-1] != (255, 255):
         if round:
             image = image.split()[-1].convert("L").point(lambda x: 255 if x > 128 else 0)
@@ -738,7 +751,12 @@ def create_infotext(p, all_prompts, all_seeds, all_subseeds, comments=None, iter
     }
 
     # if hires fix was used, p.firstpass_use_distilled_cfg_scale is appropriately set, otherwise it doesn't exist
-    firstpass_use_distilled_cfg_scale = getattr(p,'firstpass_use_distilled_cfg_scale', p.sd_model.use_distilled_cfg_scale)
+    # Check if p.sd_model exists and has use_distilled_cfg_scale attribute
+    default_distilled_cfg = False
+    if p.sd_model is not None and hasattr(p.sd_model, 'use_distilled_cfg_scale'):
+        default_distilled_cfg = p.sd_model.use_distilled_cfg_scale
+
+    firstpass_use_distilled_cfg_scale = getattr(p,'firstpass_use_distilled_cfg_scale', default_distilled_cfg)
     if firstpass_use_distilled_cfg_scale:
         generation_params['Distilled CFG Scale'] = p.distilled_cfg_scale
 
@@ -1410,7 +1428,10 @@ class StableDiffusionProcessingTxt2Img(StableDiffusionProcessing):
             if self.hr_checkpoint_name and self.hr_checkpoint_name != 'Use same checkpoint':
                 checkpoint_changed = main_entry.checkpoint_change(self.hr_checkpoint_name, save=False, refresh=False)
                 if checkpoint_changed:
-                    self.firstpass_use_distilled_cfg_scale = self.sd_model.use_distilled_cfg_scale
+                    if self.sd_model is not None and hasattr(self.sd_model, 'use_distilled_cfg_scale'):
+                        self.firstpass_use_distilled_cfg_scale = self.sd_model.use_distilled_cfg_scale
+                    else:
+                        self.firstpass_use_distilled_cfg_scale = False
                     reload = True
 
             if reload:
@@ -1422,7 +1443,7 @@ class StableDiffusionProcessingTxt2Img(StableDiffusionProcessing):
                     main_entry.checkpoint_change(fp_checkpoint, save=False, refresh=False)
                     main_entry.refresh_model_loading_parameters()
 
-            if self.sd_model.use_distilled_cfg_scale:
+            if self.sd_model is not None and hasattr(self.sd_model, 'use_distilled_cfg_scale') and self.sd_model.use_distilled_cfg_scale:
                 self.extra_generation_params['Hires Distilled CFG Scale'] = self.hr_distilled_cfg
 
         return self.sample_hr_pass(samples, decoded_samples, seeds, subseeds, subseed_strength, prompts)
@@ -1753,6 +1774,9 @@ class StableDiffusionProcessingImg2Img(StableDiffusionProcessing):
             self.color_corrections = []
         imgs = []
         for img in self.init_images:
+            # Additional safety check for init image
+            if img is None or not hasattr(img, 'mode'):
+                raise ValueError(f"Invalid init image: {type(img)}. Please provide a valid PIL Image.")
 
             # Save init image
             if opts.save_init_img:

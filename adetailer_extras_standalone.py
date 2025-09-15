@@ -54,10 +54,8 @@ class ADetailerExtras:
             # inpaintモデルのみを取得
             inpaint_models = get_inpaint_models()
             
-            # 地域特化モデルを優先的に表示
+            # 地域特化モデルを優先的に表示（実在するもののみ）
             priority_models = [
-                "🎨 indianBeauty_v15_inpainting",
-                "🎨 koreanDollLikeness_v15_inpainting", 
                 "🎨 chineseDollLikeness_v15_inpainting",
                 "🎨 americanBeauty_v15_inpainting",
                 "🎨 europeanBeauty_v20_inpainting",

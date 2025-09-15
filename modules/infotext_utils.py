@@ -97,7 +97,15 @@ def image_from_url_text(filedata):
         assert is_in_right_dir, 'trying to open image file outside of allowed directories'
 
         filename = filename.rsplit('?', 1)[0]
-        return images.read(filename)
+        try:
+            image = images.read(filename)
+            if image is None or not hasattr(image, 'mode'):
+                print(f"[Warning] Failed to load valid image from: {filename}")
+                return None
+            return image
+        except Exception as e:
+            print(f"[Warning] Error reading image {filename}: {e}")
+            return None
 
     if isinstance(filedata, str):
         if filedata.startswith("data:image/png;base64,"):
@@ -197,16 +205,16 @@ def connect_paste_params_buttons():
 def send_image_and_dimensions(x):
     if isinstance(x, Image.Image):
         img = x
-        if img.mode == 'RGBA':
+        if img is not None and hasattr(img, 'mode') and img.mode == 'RGBA':
             img = img.convert('RGB')
     elif isinstance(x, list) and isinstance(x[0], tuple):
         img = x[0][0]
     else:
         img = image_from_url_text(x)
-        if img is not None and img.mode == 'RGBA':
+        if img is not None and hasattr(img, 'mode') and img.mode == 'RGBA':
             img = img.convert('RGB')
 
-    if shared.opts.send_size and isinstance(img, Image.Image):
+    if shared.opts.send_size and isinstance(img, Image.Image) and img is not None and hasattr(img, 'width'):
         w = img.width
         h = img.height
     else:
