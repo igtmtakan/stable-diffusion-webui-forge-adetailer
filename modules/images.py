@@ -264,6 +264,11 @@ def resize_image(resize_mode, im, width, height, upscaler_name=None, force_RGBA=
         upscaler_name: The name of the upscaler to use. If not provided, defaults to opts.upscaler_for_img2img.
     """
 
+    # Additional safety check for image object
+    if im is None or not hasattr(im, 'mode'):
+        print(f"[Warning] Invalid image object in resize_image: {type(im)}")
+        return im
+
     if not force_RGBA and im.mode == 'RGBA':
         im = im.convert('RGB')
 
@@ -572,6 +577,10 @@ def save_image_with_geninfo(image, geninfo, filename, extension=None, existing_p
     For JPG images, there's no dictionary and geninfo just replaces the EXIF description.
     """
 
+    # Additional safety check for image object
+    if image is None or not hasattr(image, 'mode'):
+        raise ValueError(f"Invalid image object for saving: {type(image)}")
+
     if extension is None:
         extension = os.path.splitext(filename)[1]
 
@@ -862,6 +871,11 @@ def image_data(data):
 def flatten(img, bgcolor):
     """replaces transparency with bgcolor (example: "#ffffff"), returning an RGB mode image with no transparency"""
 
+    # Additional safety check for image object
+    if img is None or not hasattr(img, 'mode'):
+        print(f"[Warning] Invalid image object in flatten: {type(img)}")
+        return img
+
     if img.mode == "RGBA":
         background = Image.new('RGBA', img.size, bgcolor)
         background.paste(img, mask=img)
@@ -882,15 +896,24 @@ def fix_image(image: Image.Image):
         return None
 
     try:
+        # Additional safety check for image object
+        if not hasattr(image, 'mode'):
+            print(f"[Warning] Invalid image object: {type(image)}")
+            return None
+
         image = ImageOps.exif_transpose(image)
         image = fix_png_transparency(image)
-    except Exception:
+    except Exception as e:
+        print(f"[Warning] Error fixing image: {e}")
         pass
 
     return image
 
 
 def fix_png_transparency(image: Image.Image):
+    if image is None or not hasattr(image, 'mode'):
+        return image
+
     if image.mode not in ("RGB", "P") or not isinstance(image.info.get("transparency"), bytes):
         return image
 

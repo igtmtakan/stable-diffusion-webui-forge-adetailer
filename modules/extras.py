@@ -384,9 +384,11 @@ def get_detection_models_wrapper():
         return get_fallback_detection_models()
 
 def get_fallback_adetailer_models():
-    """フォールバックADetailerモデルリスト"""
-    return [
-        "None",
+    """フォールバックADetailerモデルリスト（実在するファイルのみ）"""
+    import os
+
+    # 基本モデルリスト（実在するもののみ）
+    base_models = [
         "🎨 sd-v1-5-inpainting",
         "🎨 americanBeauty_v15_inpainting",
         "🎨 beautifulRealistic_v7_inpainting",
@@ -395,15 +397,56 @@ def get_fallback_adetailer_models():
         "🎨 deliberate_v2_inpainting",
         "🎨 dreamshaper_8Inpainting",
         "🎨 europeanBeauty_v20_inpainting",
-        "🎨 indianBeauty_v15_inpainting",
         "🎨 majicmixRealistic_v7-inpainting",
         "🎨 majicmixRealistic_v7_inpainting",
         "🎨 realisticVisionV60B1_v51HyperInpaintVAE",
         "🎨 realisticVision_v6_inpainting",
         "🎨 stable_diffusion_v15_inpainting",
-        "🎨 yayoiMix_v25",
-        "🎨 koreanDollLikeness"
+        "🎨 yayoiMix_v25"
     ]
+
+    # 実在するファイルのみをフィルタリング
+    available_models = ["None"]
+
+    # 検索対象ディレクトリ
+    search_dirs = [
+        "models/Stable-diffusion",
+        "models/Stable-diffusion/sd",
+        "models/inpaint"
+    ]
+
+    for model_display_name in base_models:
+        # 表示名からファイル名を推測
+        model_filename = model_display_name.replace("🎨 ", "")
+        found = False
+
+        for search_dir in search_dirs:
+            if not os.path.exists(search_dir):
+                continue
+
+            for root, dirs, files in os.walk(search_dir):
+                for file in files:
+                    if file.endswith(('.safetensors', '.ckpt', '.pt')):
+                        file_without_ext = os.path.splitext(file)[0]
+                        if file_without_ext == model_filename:
+                            file_path = os.path.join(root, file)
+                            file_size = os.path.getsize(file_path)
+                            # 10MB以上のファイルのみを有効とする
+                            if file_size >= 10 * 1024 * 1024:
+                                available_models.append(model_display_name)
+                                found = True
+                                print(f"[Extras] ✅ Found valid model: {model_display_name} -> {file}")
+                                break
+                if found:
+                    break
+            if found:
+                break
+
+        if not found:
+            print(f"[Extras] ⚠️ Skipping non-existent model: {model_display_name}")
+
+    print(f"[Extras] ✅ Fallback models: {len(available_models)} available (including None)")
+    return available_models
 
 
 def get_fallback_detection_models():
